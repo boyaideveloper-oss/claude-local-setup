@@ -29,7 +29,7 @@ echo "Model: $MODEL_NAME"
 # สร้าง config พร้อมชื่อ model จริง
 cat > "$CONFIG_FILE" <<EOF
 model_list:
-  - model_name: local
+  - model_name: $MODEL_NAME
     litellm_params:
       model: openai/$MODEL_NAME
       api_base: $LLAMA_API_BASE
@@ -54,4 +54,4 @@ fi
 
 ANTHROPIC_BASE_URL="$PROXY_URL" \
 ANTHROPIC_API_KEY="dummy" \
-claude --model local "$@"
+claude --model "$MODEL_NAME" "$@"
