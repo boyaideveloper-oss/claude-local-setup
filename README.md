@@ -45,12 +45,24 @@ cp claude-local /usr/local/bin/claude-local
 chmod +x /usr/local/bin/claude-local
 ```
 
-### 3. ตั้งค่า IP และ Port ของ llama.cpp server
+### 3. ตั้งค่า LLAMA_API_BASE
 
-ไม่ต้องแก้ไขไฟล์ config ใดๆ แค่ตั้ง environment variable ก่อนใช้งาน:
+`LLAMA_API_BASE` คือ URL ของ llama.cpp server ในเครื่องหรือในวง LAN ของคุณ ไม่ต้องแก้ไขไฟล์ config ใดๆ — script จะดึงชื่อ model และสร้าง config ให้อัตโนมัติ
+
+**หา IP ของเครื่องที่รัน llama.cpp:**
 
 ```bash
-export LLAMA_API_BASE=http://<IP-เครื่องที่รัน-llama.cpp>:<PORT>/v1
+# Linux / macOS
+ip addr show   # หรือ ifconfig
+
+# Windows
+ipconfig
+```
+
+**ตั้งค่าชั่วคราว (เฉพาะ session นี้):**
+
+```bash
+export LLAMA_API_BASE=http://<IP>:<PORT>/v1
 ```
 
 **ตัวอย่าง:**
@@ -63,18 +75,22 @@ export LLAMA_API_BASE=http://localhost:8080/v1
 export LLAMA_API_BASE=http://192.168.1.100:8080/v1
 ```
 
-ตรวจสอบ IP และ port ของ llama.cpp server:
-
-```bash
-curl http://<IP>:<PORT>/v1/models
-```
-
-เพื่อให้ไม่ต้อง export ทุกครั้ง ให้เพิ่มบรรทัดนี้ใน `~/.bashrc` หรือ `~/.zshrc`:
+**ตั้งค่าถาวร (แนะนำ):**
 
 ```bash
 echo 'export LLAMA_API_BASE=http://<IP>:<PORT>/v1' >> ~/.bashrc
 source ~/.bashrc
 ```
+
+> ใช้ `~/.zshrc` แทนถ้าใช้ zsh
+
+**ทดสอบว่า server เชื่อมต่อได้:**
+
+```bash
+curl $LLAMA_API_BASE/models
+```
+
+ถ้าเห็น JSON แสดงรายชื่อ model แปลว่าพร้อมใช้งานแล้ว
 
 ---
 
