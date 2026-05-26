@@ -20,7 +20,10 @@ set_env() {
 
 # 1. ติดตั้ง LiteLLM + ddgs
 echo "[1/5] ติดตั้ง LiteLLM และ ddgs..."
-pip install 'litellm[proxy]' 'httpx[socks]' 'ddgs' --break-system-packages -q
+if ! pip install --break-system-packages -q 'litellm[proxy]' 'httpx[socks]' 'ddgs' 2>/dev/null; then
+    # Debian/Ubuntu: บาง package (เช่น PyYAML) ติดตั้งโดย apt ทำให้ pip ไม่สามารถ uninstall ได้
+    pip install --break-system-packages --ignore-installed -q 'litellm[proxy]' 'httpx[socks]' 'ddgs'
+fi
 echo "      สำเร็จ"
 
 # 2. คัดลอก config files
