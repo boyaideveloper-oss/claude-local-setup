@@ -11,9 +11,43 @@ if [ -z "$LLAMA_API_BASE" ]; then
     exit 1
 fi
 
+# ดึงชื่อ model จาก llama.cpp server
+MODEL_NAME=$(curl -s "$LLAMA_API_BASE/models" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+models = data.get('data') or data.get('models') or []
+print(models[0]['id'] if models else 'local-model')
+" 2>/dev/null)
+
+if [ -z "$MODEL_NAME" ]; then
+    echo "Error: ไม่สามารถดึงชื่อ model จาก $LLAMA_API_BASE"
+    exit 1
+fi
+
+echo "Model: $MODEL_NAME"
+
+# สร้าง config พร้อมชื่อ model จริง
+cat > "$CONFIG_FILE" <<EOF
+model_list:
+  - model_name: local
+    litellm_params:
+      model: openai/$MODEL_NAME
+      api_base: $LLAMA_API_BASE
+      api_key: dummy
+
+litellm_settings:
+  drop_params: true
+EOF
+
 # Start LiteLLM proxy ถ้ายังไม่ได้รัน
 if ! curl -s "$PROXY_URL/health" > /dev/null 2>&1; then
     echo "Starting LiteLLM proxy..."
+    litellm --config "$CONFIG_FILE" --port 4000 &> /tmp/litellm.log &
+    sleep 4
+else
+    # restart เพื่อโหลด config ใหม่
+    pkill -f "litellm.*4000" 2>/dev/null
+    sleep 1
     litellm --config "$CONFIG_FILE" --port 4000 &> /tmp/litellm.log &
     sleep 4
 fi
