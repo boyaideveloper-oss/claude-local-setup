@@ -110,6 +110,67 @@ curl $LLAMA_API_BASE/models
 
 ---
 
+---
+
+## การใช้งานนอก LAN ผ่าน Tailscale
+
+ถ้า llama.cpp รันอยู่บนเครื่องอื่นที่ไม่ได้อยู่ในวง LAN เดียวกัน (เช่น บ้านอื่น หรือใช้ผ่านมือถือ) ให้ใช้ Tailscale
+
+### 1. ติดตั้ง Tailscale ทั้งสองเครื่อง
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+```
+
+login ด้วย account เดียวกันทั้งสองเครื่อง จะได้ IP ในรูปแบบ `100.x.x.x`
+
+### 2. หา Tailscale IP ของเครื่องที่รัน llama.cpp
+
+```bash
+tailscale status
+```
+
+### 3. ตั้งค่า
+
+```bash
+# ตั้ง LLAMA_API_BASE เป็น Tailscale IP
+echo 'export LLAMA_API_BASE=http://100.x.x.x:8080/v1' >> ~/.bashrc
+
+# เปิดใช้งาน Tailscale SOCKS5 proxy (สำหรับ userspace networking mode)
+echo 'export TAILSCALE_SOCKS5=localhost:1055' >> ~/.bashrc
+
+source ~/.bashrc
+```
+
+### 4. Start tailscaled ด้วย SOCKS5
+
+```bash
+tailscaled --tun=userspace-networking \
+  --socks5-server=localhost:1055 \
+  --state=/var/lib/tailscale/tailscaled.state \
+  --socket=/run/tailscale/tailscaled.sock &
+tailscale up
+```
+
+### 5. ใช้งาน
+
+```bash
+claude-local
+```
+
+script จะสร้าง port forward ผ่าน Tailscale อัตโนมัติเมื่อตั้งค่า `TAILSCALE_SOCKS5` ไว้
+
+---
+
+## สถาปัตยกรรม (Tailscale mode)
+
+```
+Claude Code → LiteLLM (:4000) → localhost:18080 → Tailscale SOCKS5 → llama.cpp
+```
+
+---
+
 ## ไฟล์ในโปรเจกต์
 
 | ไฟล์ | ตำแหน่งติดตั้ง | หน้าที่ |
@@ -117,6 +178,7 @@ curl $LLAMA_API_BASE/models
 | `litellm_config.yaml` | `~/.claude/litellm_config.yaml` | กำหนด model และ endpoint |
 | `start-litellm.sh` | `~/.claude/start-litellm.sh` | script เริ่ม proxy |
 | `claude-local` | `/usr/local/bin/claude-local` | คำสั่งสำหรับใช้งาน |
+| `tailscale-forward` | `/usr/local/bin/tailscale-forward` | TCP port forwarder ผ่าน Tailscale |
 
 ---
 
