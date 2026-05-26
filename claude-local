@@ -3,6 +3,7 @@
 
 PROXY_URL="http://localhost:4000"
 CONFIG_FILE="$HOME/.claude/litellm_config.yaml"
+FORWARD_PORT=18080
 
 # ตรวจสอบ LLAMA_API_BASE
 if [ -z "$LLAMA_API_BASE" ]; then
@@ -11,13 +12,32 @@ if [ -z "$LLAMA_API_BASE" ]; then
     exit 1
 fi
 
+# ถ้ามี TAILSCALE_SOCKS5 ให้สร้าง local port forward แทน
+EFFECTIVE_API_BASE="$LLAMA_API_BASE"
+if [ -n "$TAILSCALE_SOCKS5" ]; then
+    # แยก host และ port จาก LLAMA_API_BASE
+    TS_HOST=$(echo "$LLAMA_API_BASE" | sed 's|http://||;s|/.*||;s|:.*||')
+    TS_PORT=$(echo "$LLAMA_API_BASE" | sed 's|.*:||;s|/.*||')
+
+    # Start port forwarder ถ้ายังไม่รัน
+    pkill -f "tailscale-forward $FORWARD_PORT" 2>/dev/null
+    fuser -k ${FORWARD_PORT}/tcp 2>/dev/null
+    sleep 1
+    echo "Forwarding via Tailscale: $TS_HOST:$TS_PORT → localhost:$FORWARD_PORT"
+    tailscale-forward $FORWARD_PORT $TS_HOST $TS_PORT &>/tmp/ts-forward.log &
+    sleep 2
+
+    EFFECTIVE_API_BASE="http://localhost:$FORWARD_PORT/v1"
+fi
+
 # ดึงชื่อ model จาก llama.cpp server
-MODEL_NAME=$(curl -s "$LLAMA_API_BASE/models" | python3 -c "
+CURL_OPTS=""
+[ -n "$TAILSCALE_SOCKS5" ] && CURL_OPTS="--proxy socks5://$TAILSCALE_SOCKS5"
+MODEL_NAME=$(curl -s $CURL_OPTS "$LLAMA_API_BASE/models" | python3 -c "
 import sys, json, re
 data = json.load(sys.stdin)
 models = data.get('data') or data.get('models') or []
 full = models[0]['id'] if models else 'local-model'
-# ย่อชื่อ เช่น gemma-4-26B-A4B-it-Q6_K.gguf → gemma-4 (local)
 name = full.replace('.gguf', '')
 match = re.match(r'^([a-zA-Z]+-\d+)', name)
 short = match.group(1) if match else name.split('-')[0]
@@ -31,31 +51,28 @@ fi
 
 echo "Model: $MODEL_NAME"
 
-# สร้าง config พร้อมชื่อ model จริง
+# สร้าง config พร้อม api_base ที่ถูกต้อง
 cat > "$CONFIG_FILE" <<EOF
 model_list:
   - model_name: $MODEL_NAME
     litellm_params:
       model: openai/$MODEL_NAME
-      api_base: $LLAMA_API_BASE
+      api_base: $EFFECTIVE_API_BASE
       api_key: dummy
 
 litellm_settings:
   drop_params: true
 EOF
 
-# Start LiteLLM proxy ถ้ายังไม่ได้รัน
-if ! curl -s "$PROXY_URL/health" > /dev/null 2>&1; then
-    echo "Starting LiteLLM proxy..."
-    litellm --config "$CONFIG_FILE" --port 4000 &> /tmp/litellm.log &
-    sleep 4
-else
-    # restart เพื่อโหลด config ใหม่
-    pkill -f "litellm.*4000" 2>/dev/null
-    sleep 1
-    litellm --config "$CONFIG_FILE" --port 4000 &> /tmp/litellm.log &
-    sleep 4
-fi
+# หา litellm proxy directory
+LITELLM_PROXY_DIR=$(python3 -c "import litellm.proxy, os; print(os.path.dirname(litellm.proxy.__file__))")
+
+# Start LiteLLM proxy
+pkill -f "proxy_cli.py.*4000" 2>/dev/null
+sleep 1
+echo "Starting LiteLLM proxy..."
+(cd "$LITELLM_PROXY_DIR" && python3 proxy_cli.py --config "$CONFIG_FILE" --port 4000) &>/tmp/litellm.log &
+sleep 4
 
 ANTHROPIC_BASE_URL="$PROXY_URL" \
 ANTHROPIC_API_KEY="dummy" \
