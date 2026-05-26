@@ -23,13 +23,27 @@ LiteLLM ทำหน้าที่แปลง Anthropic API format ให้�
 
 ## การติดตั้ง
 
-### 1. ติดตั้ง LiteLLM
+### วิธีที่ 1 — ใช้ install.sh (แนะนำ)
+
+```bash
+git clone https://github.com/boyaideveloper-oss/claude-local-setup.git
+cd claude-local-setup
+bash install.sh
+```
+
+script จะถามแค่ IP:PORT ของ llama.cpp server แล้วทำทุกอย่างให้เองเลย
+
+---
+
+### วิธีที่ 2 — ติดตั้งเอง
+
+#### 1. ติดตั้ง LiteLLM
 
 ```bash
 pip install 'litellm[proxy]' --break-system-packages
 ```
 
-### 2. คัดลอก config files
+#### 2. คัดลอก config files
 
 ```bash
 # สร้างโฟลเดอร์ถ้ายังไม่มี
@@ -45,7 +59,7 @@ cp claude-local /usr/local/bin/claude-local
 chmod +x /usr/local/bin/claude-local
 ```
 
-### 3. ตั้งค่า LLAMA_API_BASE
+#### 3. ตั้งค่า LLAMA_API_BASE
 
 `LLAMA_API_BASE` คือ URL ของ llama.cpp server ในเครื่องหรือในวง LAN ของคุณ ไม่ต้องแก้ไขไฟล์ config ใดๆ — script จะดึงชื่อ model และสร้าง config ให้อัตโนมัติ
 
