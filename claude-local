@@ -13,10 +13,15 @@ fi
 
 # ดึงชื่อ model จาก llama.cpp server
 MODEL_NAME=$(curl -s "$LLAMA_API_BASE/models" | python3 -c "
-import sys, json
+import sys, json, re
 data = json.load(sys.stdin)
 models = data.get('data') or data.get('models') or []
-print(models[0]['id'] if models else 'local-model')
+full = models[0]['id'] if models else 'local-model'
+# ย่อชื่อ เช่น gemma-4-26B-A4B-it-Q6_K.gguf → gemma-4 (local)
+name = full.replace('.gguf', '')
+match = re.match(r'^([a-zA-Z]+-\d+)', name)
+short = match.group(1) if match else name.split('-')[0]
+print(f'{short} (local)')
 " 2>/dev/null)
 
 if [ -z "$MODEL_NAME" ]; then
