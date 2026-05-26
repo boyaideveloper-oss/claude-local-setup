@@ -5,7 +5,7 @@
 ## สถาปัตยกรรม
 
 ```
-Claude Code  →  LiteLLM proxy (:4000)  →  llama.cpp server (:8080)
+Claude Code  →  LiteLLM proxy (:4000)  →  llama.cpp server
   [Anthropic API format]                  [OpenAI-compatible format]
 ```
 
@@ -45,17 +45,35 @@ cp claude-local /usr/local/bin/claude-local
 chmod +x /usr/local/bin/claude-local
 ```
 
-### 3. แก้ไข config ให้ตรงกับเครื่องของคุณ
+### 3. ตั้งค่า IP และ Port ของ llama.cpp server
 
-แก้ไขไฟล์ `~/.claude/litellm_config.yaml`:
+ไม่ต้องแก้ไขไฟล์ config ใดๆ แค่ตั้ง environment variable ก่อนใช้งาน:
 
-```yaml
-model_list:
-  - model_name: gemma-local          # ชื่อที่ใช้เรียก model
-    litellm_params:
-      model: openai/ชื่อไฟล์-model.gguf
-      api_base: http://IP-ของเครื่อง:PORT/v1   # เปลี่ยน IP และ port
-      api_key: dummy
+```bash
+export LLAMA_API_BASE=http://<IP-เครื่องที่รัน-llama.cpp>:<PORT>/v1
+```
+
+**ตัวอย่าง:**
+
+```bash
+# llama.cpp รันบนเครื่องเดียวกัน
+export LLAMA_API_BASE=http://localhost:8080/v1
+
+# llama.cpp รันบนเครื่องอื่นในวง LAN
+export LLAMA_API_BASE=http://192.168.1.100:8080/v1
+```
+
+ตรวจสอบ IP และ port ของ llama.cpp server:
+
+```bash
+curl http://<IP>:<PORT>/v1/models
+```
+
+เพื่อให้ไม่ต้อง export ทุกครั้ง ให้เพิ่มบรรทัดนี้ใน `~/.bashrc` หรือ `~/.zshrc`:
+
+```bash
+echo 'export LLAMA_API_BASE=http://<IP>:<PORT>/v1' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ---
@@ -73,6 +91,9 @@ model_list:
 ## การใช้งาน
 
 ```bash
+# ตั้งค่า IP ก่อน (ทำครั้งเดียว หรือเพิ่มใน ~/.bashrc)
+export LLAMA_API_BASE=http://192.168.1.100:8080/v1
+
 # เปิด interactive session
 claude-local
 
@@ -89,19 +110,24 @@ curl http://localhost:4000/health
 
 ## แก้ไขปัญหา
 
+**ลืมตั้ง LLAMA_API_BASE**
+```bash
+export LLAMA_API_BASE=http://<IP>:<PORT>/v1
+```
+
 **proxy ไม่ start**
 ```bash
 # ดู log
 cat /tmp/litellm.log
 
 # start ด้วยตัวเอง
-~/.claude/start-litellm.sh
+LLAMA_API_BASE=http://<IP>:<PORT>/v1 ~/.claude/start-litellm.sh
 ```
 
 **ไม่สามารถเชื่อมต่อ llama.cpp**
 ```bash
 # ตรวจสอบว่า server ทำงานอยู่
-curl http://192.168.68.67:8080/v1/models
+curl $LLAMA_API_BASE/models
 
 # ถ้าใช้ ollama ต้อง start ก่อน
 ollama serve
@@ -109,7 +135,7 @@ ollama serve
 
 **content ว่างเปล่า**
 
-model นี้เป็น thinking model (Gemma 4) ที่ใช้ reasoning tokens ก่อนตอบ ให้เพิ่ม `max_tokens` ใน request ให้มากพอ (แนะนำ 1024+)
+model บางตัวเป็น thinking model ที่ใช้ reasoning tokens ก่อนตอบ ให้เพิ่ม `max_tokens` ใน request ให้มากพอ (แนะนำ 1024+)
 
 ---
 
@@ -117,7 +143,7 @@ model นี้เป็น thinking model (Gemma 4) ที่ใช้ reasonin
 
 ```bash
 # 1. ตรวจสอบ llama.cpp server
-curl http://192.168.68.67:8080/v1/models
+curl $LLAMA_API_BASE/models
 
 # 2. ตรวจสอบ LiteLLM proxy
 curl http://localhost:4000/health
@@ -128,7 +154,7 @@ curl http://localhost:4000/v1/messages \
   -H "anthropic-version: 2023-06-01" \
   -H "x-api-key: dummy" \
   -d '{
-    "model": "gemma-local",
+    "model": "local",
     "max_tokens": 500,
     "messages": [{"role": "user", "content": "สวัสดี"}]
   }'

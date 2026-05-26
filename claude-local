@@ -1,15 +1,23 @@
 #!/bin/bash
-# Claude Code with local Gemma model via LiteLLM proxy
+# Claude Code with local LLM via LiteLLM proxy
 
 PROXY_URL="http://localhost:4000"
+CONFIG_FILE="$HOME/.claude/litellm_config.yaml"
 
-# Check if LiteLLM proxy is running
+# ตรวจสอบ LLAMA_API_BASE
+if [ -z "$LLAMA_API_BASE" ]; then
+    echo "Error: กรุณาตั้งค่า LLAMA_API_BASE ก่อน"
+    echo "ตัวอย่าง: export LLAMA_API_BASE=http://192.168.1.100:8080/v1"
+    exit 1
+fi
+
+# Start LiteLLM proxy ถ้ายังไม่ได้รัน
 if ! curl -s "$PROXY_URL/health" > /dev/null 2>&1; then
     echo "Starting LiteLLM proxy..."
-    litellm --config /root/.claude/litellm_config.yaml --port 4000 &> /tmp/litellm.log &
+    litellm --config "$CONFIG_FILE" --port 4000 &> /tmp/litellm.log &
     sleep 4
 fi
 
 ANTHROPIC_BASE_URL="$PROXY_URL" \
 ANTHROPIC_API_KEY="dummy" \
-claude --model gemma-local "$@"
+claude --model local "$@"

@@ -1,8 +1,8 @@
 model_list:
-  - model_name: gemma-local
+  - model_name: local
     litellm_params:
-      model: openai/gemma-4-26B-A4B-it-Q6_K.gguf
-      api_base: http://192.168.68.67:8080/v1
+      model: openai/local-model
+      api_base: os.environ/LLAMA_API_BASE
       api_key: dummy
 
 litellm_settings:
