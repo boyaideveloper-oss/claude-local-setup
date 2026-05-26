@@ -4,6 +4,9 @@ model_list:
       model: openai/local-model
       api_base: os.environ/LLAMA_API_BASE
       api_key: dummy
+      supports_function_calling: true
 
 litellm_settings:
   drop_params: true
+  use_chat_completions_url_for_anthropic_messages: true
+  callbacks: ["/root/litellm_hooks/system_prompt_hook.proxy_handler_instance"]

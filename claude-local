@@ -62,9 +62,12 @@ model_list:
       model: openai/$MODEL_NAME
       api_base: $EFFECTIVE_API_BASE
       api_key: dummy
+      supports_function_calling: true
 
 litellm_settings:
   drop_params: true
+  use_chat_completions_url_for_anthropic_messages: true
+  callbacks: ["/root/litellm_hooks/system_prompt_hook.proxy_handler_instance"]
 EOF
 
 # --- Start LiteLLM proxy ---
@@ -72,8 +75,8 @@ LITELLM_PROXY_DIR=$(python3 -c "import litellm.proxy, os; print(os.path.dirname(
 pkill -f "proxy_cli.py.*4000" 2>/dev/null
 sleep 1
 echo "Starting LiteLLM proxy..."
-(cd "$LITELLM_PROXY_DIR" && python3 proxy_cli.py --config "$CONFIG_FILE" --port 4000) &>/tmp/litellm.log &
-sleep 4
+setsid python3 "$LITELLM_PROXY_DIR/proxy_cli.py" --config "$CONFIG_FILE" --port 4000 >/tmp/litellm.log 2>&1 &
+sleep 6
 
 ANTHROPIC_BASE_URL="$PROXY_URL" \
 ANTHROPIC_API_KEY="dummy" \
