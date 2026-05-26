@@ -18,18 +18,20 @@ set_env() {
     export "$key"="$val"
 }
 
-# 1. ติดตั้ง LiteLLM
-echo "[1/5] ติดตั้ง LiteLLM..."
-pip install 'litellm[proxy]' 'httpx[socks]' --break-system-packages -q
+# 1. ติดตั้ง LiteLLM + ddgs
+echo "[1/5] ติดตั้ง LiteLLM และ ddgs..."
+pip install 'litellm[proxy]' 'httpx[socks]' 'ddgs' --break-system-packages -q
 echo "      สำเร็จ"
 
 # 2. คัดลอก config files
 echo "[2/5] คัดลอก config files..."
 mkdir -p ~/.claude
+mkdir -p /root/litellm_hooks
 cp litellm_config.yaml ~/.claude/
 cp start-litellm.sh ~/.claude/ && chmod +x ~/.claude/start-litellm.sh
 cp claude-local /usr/local/bin/claude-local && chmod +x /usr/local/bin/claude-local
 cp tailscale-forward /usr/local/bin/tailscale-forward && chmod +x /usr/local/bin/tailscale-forward
+cp litellm_hooks/system_prompt_hook.py /root/litellm_hooks/system_prompt_hook.py
 echo "      สำเร็จ"
 
 # 3. เลือกโหมดการเชื่อมต่อ
