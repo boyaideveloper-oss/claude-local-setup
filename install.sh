@@ -40,11 +40,29 @@ echo "      สำเร็จ"
 # 3. เลือกโหมดการเชื่อมต่อ
 echo ""
 echo "[3/5] เลือกโหมดการเชื่อมต่อ"
-echo "      1) LAN  — llama.cpp อยู่ในวงเดียวกัน (ใช้ IP ปกติ)"
-echo "      2) Tailscale — llama.cpp อยู่นอก LAN"
-read -p "      เลือก [1/2]: " MODE
+echo "      1) Local  — รัน Claude Code และ llama.cpp บนเครื่องเดียวกัน"
+echo "      2) LAN    — llama.cpp อยู่ในวงเดียวกัน (ใช้ IP ปกติ)"
+echo "      3) Tailscale — llama.cpp อยู่นอก LAN"
+read -p "      เลือก [1/2/3]: " MODE
 
-if [ "$MODE" = "2" ]; then
+if [ "$MODE" = "1" ]; then
+    echo ""
+    echo "[4/5] ตั้งค่า Local mode..."
+    read -p "      PORT ของ llama.cpp (default 8080): " LOCAL_PORT
+    LOCAL_PORT="${LOCAL_PORT:-8080}"
+    LLAMA_URL="http://127.0.0.1:$LOCAL_PORT/v1"
+
+    echo "      ทดสอบการเชื่อมต่อ $LLAMA_URL ..."
+    if curl -s --max-time 5 "$LLAMA_URL/models" > /dev/null; then
+        echo "      เชื่อมต่อสำเร็จ"
+    else
+        echo "      คำเตือน: เชื่อมต่อไม่ได้ตอนนี้ (ตรวจสอบว่า llama.cpp รันอยู่)"
+    fi
+
+    set_env "LLAMA_API_BASE" "$LLAMA_URL"
+    echo "      ตั้งค่า LLAMA_API_BASE=$LLAMA_URL"
+
+elif [ "$MODE" = "3" ]; then
     # ติดตั้ง Tailscale
     echo ""
     echo "[4/5] ติดตั้ง Tailscale..."
@@ -87,7 +105,7 @@ if [ "$MODE" = "2" ]; then
 
 else
     echo ""
-    echo "[4/5] ตั้งค่า LLAMA_API_BASE..."
+    echo "[4/5] ตั้งค่า LAN mode..."
     read -p "      ใส่ IP และ PORT ของ llama.cpp server (เช่น 192.168.1.100:8080): " HOST
     LLAMA_URL="http://$HOST/v1"
 
