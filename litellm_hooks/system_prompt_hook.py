@@ -1,6 +1,11 @@
+import os
 import re
 import json
+import tempfile
 from litellm.integrations.custom_logger import CustomLogger
+
+_LOG_DIR = tempfile.gettempdir()
+_DEBUG_LOG = os.path.join(_LOG_DIR, "litellm_debug.log")
 
 
 TOOL_USE_SYSTEM_PROMPT = (
@@ -47,7 +52,7 @@ class SystemPromptInjector(CustomLogger):
         messages = data.get("messages") or []
 
         # Debug log
-        with open("/tmp/litellm_debug.log", "a") as f:
+        with open(_DEBUG_LOG, "a") as f:
             if tools:
                 tool_names = [t.get("name") for t in tools if isinstance(t, dict)]
                 f.write(f"[tools] {tool_names}\n")
@@ -67,10 +72,10 @@ class SystemPromptInjector(CustomLogger):
                     last_user_content = msg.get("content", "")
                     break
             query = _extract_query(last_user_content)
-            with open("/tmp/litellm_debug.log", "a") as f:
+            with open(_DEBUG_LOG, "a") as f:
                 f.write(f"[DDGS search] query={query!r}\n")
             results = _ddgs_search(query)
-            with open("/tmp/litellm_debug.log", "a") as f:
+            with open(_DEBUG_LOG, "a") as f:
                 f.write(f"[DDGS result] {results[:300]}\n")
             # Replace last message with search results, remove tools
             data["messages"][-1]["content"] = results

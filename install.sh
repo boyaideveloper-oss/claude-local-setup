@@ -29,12 +29,12 @@ echo "      Done"
 # 2. Copy config files
 echo "[2/5] Copying config files..."
 mkdir -p ~/.claude
-mkdir -p /root/litellm_hooks
+mkdir -p ~/litellm_hooks
 cp litellm_config.yaml ~/.claude/
 cp start-litellm.sh ~/.claude/ && chmod +x ~/.claude/start-litellm.sh
 cp claude-local /usr/local/bin/claude-local && chmod +x /usr/local/bin/claude-local
 cp tailscale-forward /usr/local/bin/tailscale-forward && chmod +x /usr/local/bin/tailscale-forward
-cp litellm_hooks/system_prompt_hook.py /root/litellm_hooks/system_prompt_hook.py
+cp litellm_hooks/system_prompt_hook.py ~/litellm_hooks/system_prompt_hook.py
 echo "      Done"
 
 # 3. Choose connection mode

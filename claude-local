@@ -67,7 +67,7 @@ model_list:
 litellm_settings:
   drop_params: true
   use_chat_completions_url_for_anthropic_messages: true
-  callbacks: ["/root/litellm_hooks/system_prompt_hook.proxy_handler_instance"]
+  callbacks: ["$HOME/litellm_hooks/system_prompt_hook.proxy_handler_instance"]
 EOF
 
 # --- Start LiteLLM proxy ---
