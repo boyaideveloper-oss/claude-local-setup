@@ -1,29 +1,27 @@
 # Claude Code + Local LLM (llama.cpp)
 
-ใช้งาน Claude Code กับ model ภาษาท้องถิ่น ผ่าน LiteLLM proxy
+ใช้งาน Claude Code กับ model ภาษาท้องถิ่น ผ่าน LiteLLM proxy พร้อม WebSearch ด้วย DuckDuckGo (ไม่ต้องใช้ API key)
 
 ## สถาปัตยกรรม
 
 ```
 Claude Code  →  LiteLLM proxy (:4000)  →  llama.cpp server
-  [Anthropic API format]                  [OpenAI-compatible format]
+  [Anthropic API format]    ↑               [OpenAI-compatible]
+                     system_prompt_hook
+                     (WebSearch via ddgs)
 ```
-
-LiteLLM ทำหน้าที่แปลง Anthropic API format ให้เป็น OpenAI format ที่ llama.cpp รองรับ
 
 ---
 
 ## ความต้องการ
 
-- Python 3.x
+- Python 3.x + pip
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) server รันอยู่
-- Claude Code CLI (`claude`)
+- Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
 
 ---
 
 ## การติดตั้ง
-
-### วิธีที่ 1 — ใช้ install.sh (แนะนำ)
 
 ```bash
 git clone https://github.com/boyaideveloper-oss/claude-local-setup.git
@@ -31,225 +29,184 @@ cd claude-local-setup
 bash install.sh
 ```
 
-script จะถามแค่ IP:PORT ของ llama.cpp server แล้วทำทุกอย่างให้เองเลย
+script จะถามโหมดการเชื่อมต่อ:
+
+```
+[3/5] เลือกโหมดการเชื่อมต่อ
+      1) Local     — Claude Code และ llama.cpp อยู่บนเครื่องเดียวกัน
+      2) LAN       — llama.cpp อยู่เครื่องอื่นในวง LAN
+      3) Tailscale — llama.cpp อยู่นอก LAN (ต่างบ้าน / มือถือ)
+```
 
 ---
 
-### วิธีที่ 2 — ติดตั้งเอง
+## โหมด 1 — Local (เครื่องเดียวกัน)
 
-#### 1. ติดตั้ง LiteLLM
+ใช้เมื่อ: รัน Claude Code และ llama.cpp บนเครื่องเดียวกัน
 
-```bash
-pip install 'litellm[proxy]' --break-system-packages
+```
+Claude Code → LiteLLM (:4000) → 127.0.0.1:8080 → llama.cpp
 ```
 
-#### 2. คัดลอก config files
+**ขั้นตอน:**
 
 ```bash
-# สร้างโฟลเดอร์ถ้ายังไม่มี
-mkdir -p ~/.claude
-
-# คัดลอก config
-cp litellm_config.yaml ~/.claude/litellm_config.yaml
-cp start-litellm.sh ~/.claude/start-litellm.sh
-chmod +x ~/.claude/start-litellm.sh
-
-# คัดลอก wrapper script
-cp claude-local /usr/local/bin/claude-local
-chmod +x /usr/local/bin/claude-local
+bash install.sh
+# เลือก: 1
+# PORT ของ llama.cpp (default 8080): [Enter]
 ```
 
-#### 3. ตั้งค่า LLAMA_API_BASE
+ตั้งค่าที่ได้: `LLAMA_API_BASE=http://127.0.0.1:8080/v1`
 
-`LLAMA_API_BASE` คือ URL ของ llama.cpp server ในเครื่องหรือในวง LAN ของคุณ ไม่ต้องแก้ไขไฟล์ config ใดๆ — script จะดึงชื่อ model และสร้าง config ให้อัตโนมัติ
+---
+
+## โหมด 2 — LAN
+
+ใช้เมื่อ: llama.cpp รันบนเครื่องอื่นในบ้าน/ออฟฟิศวงเดียวกัน
+
+```
+Claude Code → LiteLLM (:4000) → 192.168.x.x:8080 → llama.cpp
+```
+
+**ขั้นตอน:**
+
+```bash
+bash install.sh
+# เลือก: 2
+# IP:PORT: 192.168.1.100:8080
+```
 
 **หา IP ของเครื่องที่รัน llama.cpp:**
 
 ```bash
-# Linux / macOS
-ip addr show   # หรือ ifconfig
+# Linux
+ip addr show | grep "inet "
+
+# macOS
+ifconfig | grep "inet "
 
 # Windows
 ipconfig
 ```
 
-**ตั้งค่าชั่วคราว (เฉพาะ session นี้):**
-
-```bash
-export LLAMA_API_BASE=http://<IP>:<PORT>/v1
-```
-
-**ตัวอย่าง:**
-
-```bash
-# llama.cpp รันบนเครื่องเดียวกัน
-export LLAMA_API_BASE=http://localhost:8080/v1
-
-# llama.cpp รันบนเครื่องอื่นในวง LAN
-export LLAMA_API_BASE=http://192.168.1.100:8080/v1
-```
-
-**ตั้งค่าถาวร (แนะนำ):**
-
-```bash
-echo 'export LLAMA_API_BASE=http://<IP>:<PORT>/v1' >> ~/.bashrc
-source ~/.bashrc
-```
-
-> ใช้ `~/.zshrc` แทนถ้าใช้ zsh
-
-> **หมายเหตุ:** `export` ในบรรทัดคำสั่งธรรมดาจะหายไปเมื่อปิด terminal ต้องเพิ่มใน `~/.bashrc` เท่านั้นถึงจะถาวร
-
-**ทดสอบว่า server เชื่อมต่อได้:**
-
-```bash
-curl $LLAMA_API_BASE/models
-```
-
-ถ้าเห็น JSON แสดงรายชื่อ model แปลว่าพร้อมใช้งานแล้ว
+ตั้งค่าที่ได้: `LLAMA_API_BASE=http://192.168.1.100:8080/v1`
 
 ---
 
----
+## โหมด 3 — Tailscale (นอก LAN)
 
-## การใช้งานนอก LAN ผ่าน Tailscale
+ใช้เมื่อ: llama.cpp รันอยู่บ้านแต่อยากใช้จากที่อื่น หรือใช้จากมือถือ
 
-ถ้า llama.cpp รันอยู่บนเครื่องอื่นที่ไม่ได้อยู่ในวง LAN เดียวกัน (เช่น บ้านอื่น หรือใช้ผ่านมือถือ) ให้ใช้ Tailscale
-
-### 1. ติดตั้ง Tailscale ทั้งสองเครื่อง
-
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
+```
+Claude Code → LiteLLM (:4000) → localhost:18080 → Tailscale → llama.cpp
 ```
 
-login ด้วย account เดียวกันทั้งสองเครื่อง จะได้ IP ในรูปแบบ `100.x.x.x`
+**ขั้นตอน:**
 
-### 2. หา Tailscale IP ของเครื่องที่รัน llama.cpp
+1. ติดตั้ง Tailscale บนทั้งสองเครื่อง login account เดียวกัน
 
+2. หา Tailscale IP ของเครื่องที่รัน llama.cpp:
 ```bash
 tailscale status
+# ได้ IP รูปแบบ 100.x.x.x
 ```
 
-### 3. ตั้งค่า
-
+3. รัน install.sh:
 ```bash
-# ตั้ง LLAMA_API_BASE เป็น Tailscale IP
-echo 'export LLAMA_API_BASE=http://100.x.x.x:8080/v1' >> ~/.bashrc
-
-# เปิดใช้งาน Tailscale SOCKS5 proxy (สำหรับ userspace networking mode)
-echo 'export TAILSCALE_SOCKS5=localhost:1055' >> ~/.bashrc
-
-source ~/.bashrc
+bash install.sh
+# เลือก: 3
+# ใส่ Tailscale IP: 100.x.x.x
+# PORT: 8080
 ```
 
-### 4. Start tailscaled ด้วย SOCKS5
-
-```bash
-tailscaled --tun=userspace-networking \
-  --socks5-server=localhost:1055 \
-  --state=/var/lib/tailscale/tailscaled.state \
-  --socket=/run/tailscale/tailscaled.sock &
-tailscale up
-```
-
-### 5. ใช้งาน
-
-```bash
-claude-local
-```
-
-script จะสร้าง port forward ผ่าน Tailscale อัตโนมัติเมื่อตั้งค่า `TAILSCALE_SOCKS5` ไว้
-
----
-
-## สถาปัตยกรรม (Tailscale mode)
-
-```
-Claude Code → LiteLLM (:4000) → localhost:18080 → Tailscale SOCKS5 → llama.cpp
-```
-
----
-
-## ไฟล์ในโปรเจกต์
-
-| ไฟล์ | ตำแหน่งติดตั้ง | หน้าที่ |
-|------|--------------|---------|
-| `litellm_config.yaml` | `~/.claude/litellm_config.yaml` | กำหนด model และ endpoint |
-| `start-litellm.sh` | `~/.claude/start-litellm.sh` | script เริ่ม proxy |
-| `claude-local` | `/usr/local/bin/claude-local` | คำสั่งสำหรับใช้งาน |
-| `tailscale-forward` | `/usr/local/bin/tailscale-forward` | TCP port forwarder ผ่าน Tailscale |
+ตั้งค่าที่ได้: `LLAMA_API_BASE=http://100.x.x.x:8080/v1` + `TAILSCALE_SOCKS5=localhost:1055`
 
 ---
 
 ## การใช้งาน
 
 ```bash
-# ตั้งค่า IP ก่อน (ทำครั้งเดียว หรือเพิ่มใน ~/.bashrc)
-export LLAMA_API_BASE=http://192.168.1.100:8080/v1
-
 # เปิด interactive session
 claude-local
 
 # ถามแบบ one-shot
-claude-local -p "เขียน function Python อ่านไฟล์ CSV"
-
-# ทดสอบว่า proxy ทำงานอยู่
-curl http://localhost:4000/health
+claude-local -p "ราคาทองวันนี้เท่าไร"
 ```
 
-คำสั่ง `claude-local` จะเริ่ม LiteLLM proxy อัตโนมัติถ้ายังไม่ได้รัน
+`claude-local` จะ:
+1. ตรวจสอบ network อัตโนมัติ (LAN หรือ Tailscale)
+2. ดึงชื่อ model จาก llama.cpp
+3. Start LiteLLM proxy บน port 4000
+4. เปิด Claude Code พร้อมใช้งาน
+
+---
+
+## ฟีเจอร์ WebSearch
+
+hook ที่ติดตั้งมาจะ intercept การค้นหาและใช้ DuckDuckGo แทน (ไม่ต้องมี API key)
+
+```
+User: "ราคาทองวันนี้"
+  → hook รัน ddgs.text("ราคาทองวันนี้")
+  → ส่งผลลัพธ์จริงให้ model สรุป
+  → ตอบพร้อม source links
+```
+
+ทดสอบ WebSearch โดยตรง:
+
+```bash
+curl -s -X POST http://localhost:4000/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: dummy" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "local",
+    "max_tokens": 2048,
+    "messages": [{"role": "user", "content": "ราคาทองวันนี้"}],
+    "tools": [{"name": "web_search", "type": "web_search_20250305"}]
+  }'
+```
+
+---
+
+## ไฟล์ที่ติดตั้ง
+
+| ไฟล์ในโปรเจกต์ | ติดตั้งที่ | หน้าที่ |
+|---|---|---|
+| `claude-local` | `/usr/local/bin/claude-local` | คำสั่งหลัก |
+| `tailscale-forward` | `/usr/local/bin/tailscale-forward` | TCP port forwarder ผ่าน Tailscale |
+| `litellm_config.yaml` | `~/.claude/litellm_config.yaml` | config LiteLLM proxy |
+| `litellm_hooks/system_prompt_hook.py` | `/root/litellm_hooks/system_prompt_hook.py` | hook WebSearch + system prompt |
 
 ---
 
 ## แก้ไขปัญหา
 
-**ลืมตั้ง LLAMA_API_BASE**
+**proxy ไม่ start / เชื่อมต่อไม่ได้**
 ```bash
-export LLAMA_API_BASE=http://<IP>:<PORT>/v1
-```
-
-**proxy ไม่ start**
-```bash
-# ดู log
 cat /tmp/litellm.log
-
-# start ด้วยตัวเอง
-LLAMA_API_BASE=http://<IP>:<PORT>/v1 ~/.claude/start-litellm.sh
+curl http://localhost:4000/health
 ```
 
 **ไม่สามารถเชื่อมต่อ llama.cpp**
 ```bash
-# ตรวจสอบว่า server ทำงานอยู่
+# ทดสอบตรงๆ
 curl $LLAMA_API_BASE/models
 
-# ถ้าใช้ ollama ต้อง start ก่อน
-ollama serve
+# ตรวจสอบว่า llama.cpp รันอยู่และเปิด port ถูกต้อง
+# llama.cpp ต้อง start ด้วย --host 0.0.0.0 ถ้าต้องการให้เครื่องอื่นเข้าถึงได้
+./llama-server -m model.gguf --host 0.0.0.0 --port 8080
 ```
 
-**content ว่างเปล่า**
-
-model บางตัวเป็น thinking model ที่ใช้ reasoning tokens ก่อนตอบ ให้เพิ่ม `max_tokens` ใน request ให้มากพอ (แนะนำ 1024+)
-
----
-
-## ทดสอบการเชื่อมต่อ
-
+**WebSearch ไม่ทำงาน**
 ```bash
-# 1. ตรวจสอบ llama.cpp server
-curl $LLAMA_API_BASE/models
+python3 -c "from ddgs import DDGS; print(list(DDGS().text('test', max_results=1)))"
+tail -20 /tmp/litellm_debug.log
+```
 
-# 2. ตรวจสอบ LiteLLM proxy
-curl http://localhost:4000/health
+**Debian/Ubuntu: ติดตั้ง package ไม่ได้ (PyYAML error)**
 
-# 3. ทดสอบ Anthropic API format ผ่าน proxy
-curl http://localhost:4000/v1/messages \
-  -H "Content-Type: application/json" \
-  -H "anthropic-version: 2023-06-01" \
-  -H "x-api-key: dummy" \
-  -d '{
-    "model": "local",
-    "max_tokens": 500,
-    "messages": [{"role": "user", "content": "สวัสดี"}]
-  }'
+install.sh จัดการให้อัตโนมัติด้วย `--ignore-installed` แต่ถ้ายังติดปัญหา:
+```bash
+pip install --break-system-packages --ignore-installed 'litellm[proxy]' 'httpx[socks]' 'ddgs'
 ```
